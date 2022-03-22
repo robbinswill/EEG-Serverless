@@ -55,6 +55,8 @@ class EegAwsStack(Stack):
                                                 filesystem=_lambda.FileSystem.from_efs_access_point(efsAccessPoint, '/mnt/python'))
         executeBidsConverter.role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AmazonElasticFileSystemClientFullAccess"))
 
+
+
         codeBuildProject = codebuild.Project(self, 'eeg-test-codebuildProject',
                                              project_name="eeg-test-codebuildProject",
                                              description="Installs Python libraries to EFS.",
