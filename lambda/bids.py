@@ -9,7 +9,7 @@ import mne
 from mne_bids import BIDSPath, write_raw_bids
 
 
-def lambda_handler(event, context):
+def handler(event, context):
 
     data_raw_file = os.path.join(efs_path, event['project_directory'], event['raw_data_directory'],
                                  event['subject_id'], event['raw_file'])
