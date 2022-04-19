@@ -1,7 +1,6 @@
 from constructs import Construct
 from aws_cdk import (
     Stack,
-    Size,
     Duration,
     RemovalPolicy,
     CfnOutput,
@@ -31,8 +30,7 @@ class EegAwsStack(Stack):
         fs = efs.FileSystem(self, 'eegserverless-efs',
                             vpc=vpc,
                             security_group=efsSecurityGroup,
-                            throughput_mode=efs.ThroughputMode.PROVISIONED,
-                            provisioned_throughput_per_second=Size.mebibytes(10),
+                            throughput_mode=efs.ThroughputMode.BURSTING,
                             removal_policy=RemovalPolicy.DESTROY)
 
         efsAccessPoint = efs.AccessPoint(self, 'eegserverless-accesspoint',
@@ -80,9 +78,21 @@ class EegAwsStack(Stack):
                                                 filesystem=_lambda.FileSystem.from_efs_access_point(efsAccessPoint, '/mnt/python'))
         executeAnalysis.role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AmazonElasticFileSystemClientFullAccess"))
 
+        clearBidsDataset = _lambda.Function(self, 'eegserverless-lambdaClearBids',
+                                            runtime=_lambda.Runtime.PYTHON_3_8,
+                                            handler='clear.handler',
+                                            code=_lambda.Code.from_asset("./lambda"),
+                                            vpc=vpc,
+                                            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT),
+                                            security_groups=[lambdaSecurityGroup],
+                                            timeout=Duration.minutes(2),
+                                            memory_size=1024,
+                                            reserved_concurrent_executions=10,
+                                            filesystem=_lambda.FileSystem.from_efs_access_point(efsAccessPoint, '/mnt/python'))
+        clearBidsDataset.role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AmazonElasticFileSystemClientFullAccess"))
 
-        codeBuildProject = codebuild.Project(self, 'eegserverless-codebuildProject',
-                                             project_name="eegserverless-codebuildProject",
+        codeBuildProject = codebuild.Project(self, 'eegserverless-codebuild',
+                                             project_name="eegserverless-codebuild",
                                              description="Installs Python libraries to EFS.",
                                              vpc=vpc,
                                              build_spec=codebuild.BuildSpec.from_object({
@@ -95,7 +105,7 @@ class EegAwsStack(Stack):
                                                              'echo "Clearing previous environment, if it exists..."',
                                                              'rm -rf $CODEBUILD_EFS1/lambda/mne',
                                                              'python3 -m venv $CODEBUILD_EFS1/lambda/mne',
-                                                             'source $CODEBUILD_EFS1/lambda/mne/bin/activate && pip3 install mne && pip3 install mne-bids',
+                                                             'source $CODEBUILD_EFS1/lambda/mne/bin/activate && pip3 install mne && pip3 install mne-bids && pip3 install pybids && pip3 install pymatreader',
                                                              'echo "Changing folder permissions..."',
                                                              'chown -R 1000:1000 $CODEBUILD_EFS1/lambda/'
                                                          ]
