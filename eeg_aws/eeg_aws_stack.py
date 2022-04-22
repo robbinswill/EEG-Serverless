@@ -41,7 +41,7 @@ class EegAwsStack(Stack):
 
         executeBidsConverter = _lambda.Function(self, 'eegserverless-lambdaBidsConverter',
                                                 runtime=_lambda.Runtime.PYTHON_3_8,
-                                                handler='bids.handler',
+                                                handler='converter.handler',
                                                 code=_lambda.Code.from_asset("./lambda"),
                                                 vpc=vpc,
                                                 vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT),
@@ -98,14 +98,22 @@ class EegAwsStack(Stack):
                                              build_spec=codebuild.BuildSpec.from_object({
                                                  'version': '0.1',
                                                  'phases': {
-                                                     'build': {
+                                                     'pre_build': {
                                                          'commands': [
                                                              'echo "Installing virtual environment..."',
                                                              'mkdir -p $CODEBUILD_EFS1/lambda',
                                                              'echo "Clearing previous environment, if it exists..."',
-                                                             'rm -rf $CODEBUILD_EFS1/lambda/mne',
+                                                             'rm -rf $CODEBUILD_EFS1/lambda/mne'
+                                                         ]
+                                                     },
+                                                     'build': {
+                                                         'commands': [
                                                              'python3 -m venv $CODEBUILD_EFS1/lambda/mne',
-                                                             'source $CODEBUILD_EFS1/lambda/mne/bin/activate && pip3 install mne && pip3 install mne-bids && pip3 install pybids && pip3 install pymatreader',
+                                                             'source $CODEBUILD_EFS1/lambda/mne/bin/activate && '
+                                                             'python -m pip install mne && '
+                                                             'python -m pip install mne-bids && '
+                                                             'python -m pip install pybids && '
+                                                             'python -m pip install pymatreader',
                                                              'echo "Changing folder permissions..."',
                                                              'chown -R 1000:1000 $CODEBUILD_EFS1/lambda/'
                                                          ]

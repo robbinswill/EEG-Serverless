@@ -1,7 +1,5 @@
 import sys
 import os
-import json
-import csv
 
 efs_path = '/mnt/python'
 python_pkg_path = os.path.join(efs_path, "mne/lib/python3.8/site-packages")
