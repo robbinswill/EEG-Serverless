@@ -1,6 +1,7 @@
 from constructs import Construct
 from aws_cdk import (
     Stack,
+    Size,
     Duration,
     RemovalPolicy,
     CfnOutput,
@@ -13,13 +14,16 @@ from aws_cdk import (
 )
 
 
+# Define the stack that provisions the infrastructure
 class EegAwsStack(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        # Create a Virtual Private Cloud to contain the resources
         vpc = ec2.Vpc(self, 'eegserverless-vpc', max_azs=2, nat_gateways=1)
 
+        # Define security groups
         ec2SecurityGroup = ec2.SecurityGroup(self, 'eegserverless-ec2SG', vpc=vpc, security_group_name='eegserverless-ec2SG')
         lambdaSecurityGroup = ec2.SecurityGroup(self, 'eegserverless-lambdaSG', vpc=vpc, security_group_name='eegserverless-lambdaSG')
         efsSecurityGroup = ec2.SecurityGroup(self, 'eegserverless-efsSG', vpc=vpc, security_group_name='eegserverless-efsSG')
@@ -27,18 +31,24 @@ class EegAwsStack(Stack):
         ec2SecurityGroup.connections.allow_to(efsSecurityGroup, ec2.Port.tcp(2049))
         lambdaSecurityGroup.connections.allow_to(efsSecurityGroup, ec2.Port.tcp(2049))
 
+        # Create an Elastic Filesystem instance to hold data and libraries
+        # To limit costs, throughout is capped at 10 mb/s
         fs = efs.FileSystem(self, 'eegserverless-efs',
                             vpc=vpc,
                             security_group=efsSecurityGroup,
-                            throughput_mode=efs.ThroughputMode.BURSTING,
+                            throughput_mode=efs.ThroughputMode.PROVISIONED,
+                            provisioned_throughput_per_second= Size.mebibytes(10),
                             removal_policy=RemovalPolicy.DESTROY)
 
+        # Mount point for the filesystem is at /lambda/
         efsAccessPoint = efs.AccessPoint(self, 'eegserverless-accesspoint',
                                          file_system=fs,
                                          path='/lambda',
                                          posix_user=efs.PosixUser(gid='1000', uid='1000'),
                                          create_acl=efs.Acl(owner_gid='1000', owner_uid='1000', permissions='777'))
 
+        # Define 4 separate Lambda functions, bids conversion, preprocessing, analyzing
+        # and clearing the BIDS dataset (for development)
         executeBidsConverter = _lambda.Function(self, 'eegserverless-lambdaBidsConverter',
                                                 runtime=_lambda.Runtime.PYTHON_3_8,
                                                 handler='converter.handler',
@@ -91,6 +101,7 @@ class EegAwsStack(Stack):
                                             filesystem=_lambda.FileSystem.from_efs_access_point(efsAccessPoint, '/mnt/python'))
         clearBidsDataset.role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("AmazonElasticFileSystemClientFullAccess"))
 
+        # Define a CodeBuild script to install the filesystem with necessary packages to be used by the Lambda functions
         codeBuildProject = codebuild.Project(self, 'eegserverless-codebuild',
                                              project_name="eegserverless-codebuild",
                                              description="Installs Python libraries to EFS.",
@@ -120,6 +131,7 @@ class EegAwsStack(Stack):
                                                      }
                                                  }
                                              }),
+                                             # Python build environment, because Lambdas use Python runtime
                                              environment=codebuild.BuildEnvironment(build_image=codebuild.LinuxBuildImage.from_docker_registry('lambci/lambda:build-python3.8'),
                                                                                     compute_type=codebuild.ComputeType.LARGE,
                                                                                     privileged=True),
@@ -127,7 +139,7 @@ class EegAwsStack(Stack):
                                              subnet_selection=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_NAT),
                                              timeout=Duration.minutes(30))
 
-        cfnProject: codebuild.CfnProject
+        # Add the EFS location as an environment variable to the CodeBuild script
         cfnProject = codeBuildProject.node.default_child
         cfnProject.file_system_locations = [codebuild.CfnProject.ProjectFileSystemLocationProperty(
             identifier='efs1',
@@ -154,6 +166,6 @@ class EegAwsStack(Stack):
                                                        resources=cr.AwsCustomResourcePolicy.ANY_RESOURCE
                                                    ))
 
+        # Add the filesystem mounting point to the CodeBuild project
         codeBuildProject.node.add_dependency(efsAccessPoint)
 
-        CfnOutput(self, 'LambdaFunctionName', value=executeBidsConverter.function_name)
