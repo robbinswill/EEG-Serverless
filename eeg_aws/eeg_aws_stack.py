@@ -1,10 +1,13 @@
+"""
+This script defines the infrastructure for EEG-Serverless using AWS Cloud Development Kit.
+"""
+
 from constructs import Construct
 from aws_cdk import (
     Stack,
     Size,
     Duration,
     RemovalPolicy,
-    CfnOutput,
     custom_resources as cr,
     aws_iam as iam,
     aws_lambda as _lambda,

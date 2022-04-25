@@ -21,18 +21,17 @@ import numpy as np
 def handler(event, context):
 
     # Get the root to the BIDS dataset, print directory tree and make report
-    bids_root = os.path.join(efs_path, "ROT", "ROT_bids")
+    bids_root = os.path.join(efs_path, event['project_directory'], event['bids_data_directory'])
 
-    # Try reading-in a subject using PyBids
+    # Use the BIDSLayout object of the PyBids package to retrieve subjects from the BIDS dataset
     bids_layout = BIDSLayout(bids_root)
 
     # Declare hyperparameters
-    eog_inds = 'auto'
+    eog_inds = [64, 65]
     tmin = -0.2
     tmax = 1.0
     baseline = (None, 0)
     reject = dict(eeg=200e-6, eog=200e-6)
-    montage_fname = 'standard_1005'
     l_freq = 0.1
     h_freq = 40.0
     l_trans_bandwidth = 'auto'
@@ -43,9 +42,9 @@ def handler(event, context):
     n_max_eog = 3
     n_components = 0.99
 
-    # Read-in subject ROT1
-    sub1_raw_fname = bids_layout.get(subject='ROT1', extension='.set', return_type='filename', session='pre')
-    raw = mne.io.read_raw_eeglab(sub1_raw_fname[0], eog=eog_inds, preload=True)
+    # Read-in a subject using the BIDSLayout object by first getting the full filename, then generating the MNE Raw object
+    sub_raw_fname = bids_layout.get(event['subject_id'], extension='.set', return_type='filename', session='pre')
+    raw = mne.io.read_raw_eeglab(sub_raw_fname[0], eog=eog_inds, preload=True)
     print(raw.get_montage())
     print(raw.info['ch_names'])
     print(raw.info)
