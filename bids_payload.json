@@ -1,0 +1,10 @@
+{
+  "project_directory": "ROT",
+  "subject_id": "ROT2",
+  "raw_file": "ROT2post.set",
+  "bids_data_directory": "ROT_bids",
+  "session": "post",
+  "run": 1,
+  "datatype": "eeg",
+  "task": "default"
+}
