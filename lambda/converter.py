@@ -18,9 +18,6 @@ from mne_bids import BIDSPath, write_raw_bids, print_dir_tree
 # Lambda handler, parameters passed into event Json object
 def handler(event, context):
 
-    # print(os.listdir(efs_path))
-    # print(os.listdir(os.path.join(efs_path, event['project_directory'])))
-
     # Convert each ROT .set/.fdt pair into a BIDS-compliant database
     raw_fname = os.path.join(efs_path, event['project_directory'], event['subject_id'], event['raw_file'])
     eog_inds = [64, 65]
@@ -34,4 +31,5 @@ def handler(event, context):
                          task=event['task'], root=bids_dataset_path)
     write_raw_bids(raw, bids_path=bids_path, overwrite=True)
 
-    # print(os.listdir(os.path.join(efs_path, event['project_directory'], event['bids_data_directory'])))
+    # Recursively print the directory tree of the BIDS dataset (for logging)
+    print_dir_tree(bids_dataset_path)

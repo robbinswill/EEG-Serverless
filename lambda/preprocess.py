@@ -4,7 +4,6 @@ Original script name is "MNE_ROT_1 copy.ipynb".
 The code taken from that script begins underneath the "Declare hyperparameters" comment.
 """
 
-
 import sys
 import os
 
@@ -42,7 +41,7 @@ def handler(event, context):
     n_max_eog = 3
     n_components = 0.99
 
-    # Read-in a subject using the BIDSLayout object by first getting the full filename, then generating the MNE Raw object
+    # Read-in a subject using the BIDSLayout object by first getting the full filename, then generate the MNE Raw object
     sub_raw_fname = bids_layout.get(event['subject_id'], extension='.set', return_type='filename', session='pre')
     raw = mne.io.read_raw_eeglab(sub_raw_fname[0], eog=eog_inds, preload=True)
     print(raw.get_montage())

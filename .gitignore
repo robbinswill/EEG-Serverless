@@ -12,3 +12,4 @@ cdk.out
 .idea
 
 response.json
+*_payload.json
