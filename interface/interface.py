@@ -7,15 +7,15 @@ Function name should be saved to a config file.
 import json
 import boto3
 
+# List of subject IDs
+# subject_ids = ['ROT1', 'ROT2', 'ROT3', 'ROT4', 'ROT5', 'ROT6', 'ROT9', 'ROT10', 'ROT11', 'ROT12']
+subject_ids = ['ROT1', 'ROT2']
+
+# List of sessions
+sessions = ['pre', 'post']
+
 
 def invoke_bids_converter():
-
-    # List of subject IDs
-    # subject_ids = ['ROT1', 'ROT2', 'ROT3', 'ROT4', 'ROT5', 'ROT6', 'ROT9', 'ROT10', 'ROT11', 'ROT12']
-    subject_ids = ['ROT1', 'ROT2']
-
-    # List of sessions
-    sessions = ['pre', 'post']
 
     # Each .set file follows the pattern ROT<X><pre/post>.set, where X is the subject ID number and the session
     # can be either pre or post
@@ -51,5 +51,30 @@ def invoke_bids_converter():
             print(response)
 
 
+def invoke_preprocessing():
+    for id in subject_ids:
+        for ses in sessions:
+
+            params = {
+                "project_directory": "ROT",
+                "bids_data_directory": "ROT_bids",
+                "subject_id": id,
+                "sessions": ses
+            }
+            lambda_payload = json.dumps(params)
+
+            # Start the boto3 client and then invoke the Lambda
+            client = boto3.client('lambda')
+
+            # Run Lambdas sequentially to avoid race condition
+            response = client.invoke(
+                FunctionName='EegServerlessStack-eegserverlesslambdaPreprocess67-LjEjdMBsGt2p',
+                InvocationType='RequestResponse',
+                Payload=lambda_payload
+            )
+            print(response)
+
+
 if __name__ == '__main__':
     invoke_bids_converter()
+    invoke_preprocessing()

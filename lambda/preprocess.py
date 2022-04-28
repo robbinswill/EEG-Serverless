@@ -42,7 +42,10 @@ def handler(event, context):
     n_components = 0.99
 
     # Read-in a subject using the BIDSLayout object by first getting the full filename, then generate the MNE Raw object
-    sub_raw_fname = bids_layout.get(event['subject_id'], extension='.set', return_type='filename', session='pre')
+    sub_raw_fname = bids_layout.get(subject=event['subject_id'],
+                                    extension='.set',
+                                    return_type='filename',
+                                    session=event['session'])
     raw = mne.io.read_raw_eeglab(sub_raw_fname[0], eog=eog_inds, preload=True)
     print(raw.get_montage())
     print(raw.info['ch_names'])
