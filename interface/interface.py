@@ -1,3 +1,9 @@
+"""
+Interface to test deployed Lambda functions.
+Subject IDs and experiment attributes are hardcoded for now.
+Function name should be saved to a config file.
+"""
+
 import json
 import boto3
 
@@ -36,6 +42,7 @@ def invoke_bids_converter():
             # Start the boto3 client and then invoke the Lambda
             client = boto3.client('lambda')
 
+            # Run Lambdas sequentially to avoid race condition
             response = client.invoke(
                 FunctionName='EegServerlessStack-eegserverlesslambdaBidsConverte-urQC2Ia7S0SC',
                 InvocationType='RequestResponse',
